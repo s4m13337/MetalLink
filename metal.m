@@ -1,28 +1,27 @@
-#include "wstp.h"
-#include <stdlib.h>
-#include<time.h>
 #import <Foundation/Foundation.h>
 #import <Metal/Metal.h>
+#include "wstp.h"
+#include "utilities.h"
 
 id<MTLDevice> device;
-
-void deviceInit(){    
-    device = MTLCreateSystemDefaultDevice();
-    if(!device)
-        WSPutString(stdlink, "Failed to get device!");
-    else
-        WSPutString(stdlink, "Device ready!");
-}
+id<MTLLibrary> library;
+id<MTLFunction> kernelFunction;
+id<MTLComputePipelineState> computePipelineState;
+id<MTLCommandQueue> commandQueue;
+id<MTLCommandBuffer> commandBuffer;
 
 char* deviceName(){
-    if(!device){ return "Device not found!"; }
     return (char *)[[device name] UTF8String];
 }
 
 void deviceRecommendedMaxWorkingSetSize(){
-    device = MTLCreateSystemDefaultDevice();
     uint64_t memory = [device recommendedMaxWorkingSetSize];
     WSPutInteger64(stdlink, memory);
+}
+
+void deviceMaxBufferLength(){
+    uint64_t maxBufferLength = [device maxBufferLength];
+    WSPutInteger64(stdlink, maxBufferLength);
 }
 
 char* deviceHasUnifiedMemory(){
@@ -47,22 +46,6 @@ void readFile(){
         }
 }
 
-void logToFile(char* message){
-    // WSPutString(stdlink, message);
-    time_t seconds;
-    seconds = time(NULL);
-    FILE *file = fopen("log", "a");
-    if (file == NULL) { return; }
-    fprintf(file, "[%ld] - %s\n", seconds, message);
-    fclose(file);
-}
-
-void testLog(){
-    logToFile("Hello!");
-    logToFile("World");
-    WSPutSymbol(stdlink, "Null");
-}
-
 void addArrays(){    
     
     float *array1, *array2;
@@ -74,54 +57,7 @@ void addArrays(){
     WSGetReal32Array(stdlink, &array2, &dims2, &head2, &d2);
     int length = *dims1;
     float result[length];
-
-    // Create a device
-    /*device = MTLCreateSystemDefaultDevice();
-    if (!device) {
-        WSPutString(stdlink, "Failed to create Metal device");
-        return;
-    }
-    logToFile("Created Metal device!");*/
-
-    // Create library from source file
-    NSError *error = nil;
-    NSString *source = [NSString stringWithContentsOfFile:@"add_arrays.metal" encoding:NSUTF8StringEncoding error:&error];
-    MTLCompileOptions *options = [[MTLCompileOptions alloc] init];
     
-    if(!source){
-        WSPutString(stdlink, (char *)[[error localizedDescription] UTF8String]);
-        return;
-    }
-    logToFile("Source file found!");
-   
-    id<MTLLibrary> library = [
-        device newLibraryWithSource:source 
-        options:options
-        error:&error 
-    ];
-    if(!library){
-        WSPutString(stdlink, (char *)[[error localizedDescription] UTF8String]);
-        return;
-    }
-    logToFile("Library created!");
-
-    // Create kernel function instance
-    id<MTLFunction> kernelFunction = [library newFunctionWithName:@"add_arrays"];
-    if (!kernelFunction) {
-        WSPutString(stdlink, "Failed to create kernel function!");
-    }
-    logToFile("Kernel function created!");
-
-    // Compute Pipeline state
-    id<MTLComputePipelineState> computePipelineState = [
-        device newComputePipelineStateWithFunction:kernelFunction
-        error:&error
-    ];
-    if (!computePipelineState) {
-        WSPutString(stdlink, "Failed to create compute pipeline state");
-    }
-    logToFile("Pipeline state established.");
-
     // Create Metal buffers
     id<MTLBuffer> array1Buffer = [
         device newBufferWithBytes:array1 
@@ -140,8 +76,7 @@ void addArrays(){
     logToFile("Metal buffers created...");
   
     // Set up command encoder
-    id<MTLCommandQueue> commandQueue = [device newCommandQueue];
-    id<MTLCommandBuffer> commandBuffer = [commandQueue commandBuffer];
+
     id<MTLComputeCommandEncoder> computeEncoder = [commandBuffer computeCommandEncoder];
     [computeEncoder setComputePipelineState:computePipelineState];
     [computeEncoder setBuffer:array1Buffer offset:0 atIndex:0];
@@ -188,6 +123,51 @@ void addArrays(){
 }
 
 int main(int argc, char* argv[]){
-  return WSMain(argc, argv);
+    
+    // Initialize device
+    device = MTLCreateSystemDefaultDevice();
+    if(!device) { logToFile("Device creation failed"); return -1; }
+    logToFile("Metal device instance created");
+
+    // Create library from source file
+    NSError *error = nil;
+    NSString *source = [
+        NSString stringWithContentsOfFile:@"add_arrays.metal" 
+        encoding:NSUTF8StringEncoding 
+        error:&error
+    ];
+    MTLCompileOptions *options = [[MTLCompileOptions alloc] init];
+    
+    if(!source) { logToFile((char *)[[error localizedDescription] UTF8String]); return -1; }
+    logToFile("Library sources loaded");
+   
+    library = [
+        device newLibraryWithSource:source 
+        options:options
+        error:&error 
+    ];
+    if(!library){ logToFile((char *)[[error localizedDescription] UTF8String]); return -1; }
+    logToFile("Library instance created");
+
+    // Create kernel function instance
+    kernelFunction = [library newFunctionWithName:@"add_arrays"];
+    if (!kernelFunction) {logToFile("Failed to load kernel function"); return -1; }
+    logToFile("Kernel functions loaded");
+
+    // Compute Pipeline state
+    computePipelineState = [
+        device newComputePipelineStateWithFunction:kernelFunction
+        error:&error
+    ];
+    if (!computePipelineState) { logToFile("Error creating compute pipeline state"); return -1; }
+    logToFile("Pipeline state established");
+
+    // Creating command queue & command buffer
+    commandQueue = [device newCommandQueue];
+    if(!commandQueue){ logToFile("Error: Failed creating command queue"); return -1; }
+    commandBuffer = [commandQueue commandBuffer];
+    if(!commandBuffer){ logToFile("Error: Failed creating command buffer"); return -1; }
+
+    return WSMain(argc, argv);
 }
 

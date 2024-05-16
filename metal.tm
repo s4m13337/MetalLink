@@ -1,12 +1,4 @@
 :Begin:
-:Function:       deviceInit
-:Pattern:        DeviceInit[]
-:Arguments:      {}
-:ArgumentTypes:  {}
-:ReturnType:     Manual
-:End:
-
-:Begin:
 :Function:       deviceName
 :Pattern:        DeviceName[]
 :Arguments:      {}
@@ -39,6 +31,14 @@
 :End:
 
 :Begin:
+:Function:       deviceMaxBufferLength
+:Pattern:        DeviceMaxBufferLength[]
+:Arguments:      {}
+:ArgumentTypes:  {}
+:ReturnType:     Manual
+:End:
+
+:Begin:
 :Function:       addArrays
 :Pattern:        AddArrays[ i_List, j_List]
 :Arguments:      { i, j }
@@ -49,14 +49,6 @@
 :Begin:
 :Function:       readFile
 :Pattern:        ReadFile[]
-:Arguments:      {}
-:ArgumentTypes:  {}
-:ReturnType:     Manual
-:End:
-
-:Begin:
-:Function:       testLog
-:Pattern:        TestLog[]
 :Arguments:      {}
 :ArgumentTypes:  {}
 :ReturnType:     Manual
