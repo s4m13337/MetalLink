@@ -14,27 +14,20 @@ id<MTLComputeCommandEncoder> computeEncoder;
 NSUInteger threadsPerThreadgroup;
 NSUInteger threadExecutionWidth;
 
-char* deviceName(){
-    return (char *)[[device name] UTF8String];
-}
-
-void deviceRecommendedMaxWorkingSetSize(){
-    uint64_t memory = [device recommendedMaxWorkingSetSize];
-    WSPutInteger64(stdlink, memory);
-}
-
-void deviceMaxBufferLength(){
-    uint64_t maxBufferLength = [device maxBufferLength];
-    WSPutInteger64(stdlink, maxBufferLength);
-}
-
-char* deviceHasUnifiedMemory(){
-    return [device hasUnifiedMemory] ? "Unified" : "Dedicated";
-}
-
-void deviceMaxTransferRate(){
-    uint64_t maxTransferRate = [device maxTransferRate];
-    WSPutInteger64(stdlink, maxTransferRate);
+// Print device information
+int deviceInformation(){
+    char *message;
+    message = (char *) malloc(100 * sizeof(char));
+    sprintf(message, "Device name: %s", [[device name] UTF8String]);
+    logToFile(message);
+    sprintf(message, "Recommended maximum working memory: %ld bytes", (long)[device recommendedMaxWorkingSetSize]);
+    logToFile(message);
+    sprintf(message, "Maximum buffer length: %ld bytes", (long)[device maxBufferLength]);
+    logToFile(message);
+    [device hasUnifiedMemory] ? logToFile("Memory type: Unified") : logToFile("Memory type: Dedicated");
+    sprintf(message, "Maximum transfer rate: %ld bytes/second", (long)[device maxTransferRate]);
+    logToFile(message);
+    return 0;
 }
 
 void addArrays(){    
@@ -145,12 +138,15 @@ void addArrays(){
     return;
 }
 
-int init(){
+int initializeDevice(){
     // Initialize device
     device = MTLCreateSystemDefaultDevice();
     if(!device) { logToFile("Device creation failed"); return -1; }
     logToFile("Metal device instance created");
+    return 0;
+}
 
+int createLibrary(){
     // Create library from source file
     NSError *error = nil;
     NSString *source = [
@@ -162,7 +158,7 @@ int init(){
     
     if(!source) { logToFile((char *)[[error localizedDescription] UTF8String]); return -1; }
     logToFile("Library sources loaded");
-   
+
     library = [
         device newLibraryWithSource:source 
         options:options
@@ -176,7 +172,12 @@ int init(){
     if (!kernelFunction) {logToFile("Failed to load kernel function"); return -1; }
     logToFile("Kernel functions loaded");
 
+    return 0;
+}
+
+int createPipeline(){
     // Compute Pipeline state
+    NSError *error = nil;
     computePipelineState = [
         device newComputePipelineStateWithFunction:kernelFunction
         error:&error
@@ -184,14 +185,25 @@ int init(){
     if (!computePipelineState) { logToFile("Error creating compute pipeline state"); return -1; }
     logToFile("Pipeline state established");
 
-    // Creating command queue & command buffer
+    return 0;
+}
+
+int createCommandQueue(){
+    // Creating command
     commandQueue = [device newCommandQueue];
     if(!commandQueue){ logToFile("Error: Failed creating command queue"); return -1; }
+    return 0;
+}
 
+int init(){
+    initializeDevice();
+    deviceInformation();
+    createLibrary();
+    createPipeline();
+    createCommandQueue();
     //Threadgroup information
     threadsPerThreadgroup = computePipelineState.maxTotalThreadsPerThreadgroup;
     threadExecutionWidth = computePipelineState.threadExecutionWidth;
-
     return 0;
 }
 
