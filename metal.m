@@ -9,6 +9,10 @@ id<MTLFunction> kernelFunction;
 id<MTLComputePipelineState> computePipelineState;
 id<MTLCommandQueue> commandQueue;
 id<MTLCommandBuffer> commandBuffer;
+id<MTLComputeCommandEncoder> computeEncoder;
+
+NSUInteger threadsPerThreadgroup;
+NSUInteger threadExecutionWidth;
 
 char* deviceName(){
     return (char *)[[device name] UTF8String];
@@ -33,32 +37,43 @@ void deviceMaxTransferRate(){
     WSPutInteger64(stdlink, maxTransferRate);
 }
 
-void readFile(){
-        NSString *filePath = @"add_arrays.metal";
-        //NSString *currentDirectory = [[NSFileManager defaultManager] currentDirectoryPath];
-        NSError *error = nil; // Declare the NSError pointer
-        NSString *fileContents = [NSString stringWithContentsOfFile:filePath encoding:NSUTF8StringEncoding error:&error];
-        //WSPutString(stdlink, (char *)[currentDirectory UTF8String]);
-        if (fileContents == nil) {
-            WSPutString(stdlink, (char *)[[error localizedDescription] UTF8String]);
-        } else {
-            WSPutString(stdlink, [fileContents UTF8String]);
-        }
-}
-
 void addArrays(){    
     
-    float *array1, *array2;
-    int *dims1, *dims2;
-    char **head1, **head2;
-    int d1, d2;
+    float *array1 = NULL, *array2 = NULL;
+    int *dims1 = NULL, *dims2 = NULL;
+    char **head1 = NULL, **head2 = NULL;
+    int d1 = 0, d2 = 0;
+    
+    // Variables for logging, measuring time
+    char *message = NULL;
+    clock_t t_start, t_end;
+    double t_elapsed;
 
+    message = (char *) malloc(100 * sizeof(char));
+
+    // Get data from Mathematica
+    logToFile("Getting data from Mathematica");
+    logToFile("Fetching array 1");
+    t_start = clock();
     WSGetReal32Array(stdlink, &array1, &dims1, &head1, &d1);
+    t_end = clock();
+    t_elapsed = measureTime(t_start, t_end);
+    sprintf(message, "Fetched array 1 in %.6f seconds", t_elapsed);
+    logToFile(message);
+    logToFile("Fetching array 2");
+    t_start = clock();
     WSGetReal32Array(stdlink, &array2, &dims2, &head2, &d2);
+    t_end = clock();
+    t_elapsed = measureTime(t_start, t_end);
+    sprintf(message, "Fetched array 2 in %.6f seconds", t_elapsed);
+    logToFile(message);
+    
     int length = *dims1;
-    float result[length];
+    float *result = (float *)malloc(sizeof(float) * length);
     
     // Create Metal buffers
+    logToFile("Creating array buffers");
+    t_start = clock();
     id<MTLBuffer> array1Buffer = [
         device newBufferWithBytes:array1 
         length:sizeof(float) * length 
@@ -73,30 +88,31 @@ void addArrays(){
         device newBufferWithLength:sizeof(float) * length 
         options:MTLResourceStorageModeShared
     ];
-    logToFile("Metal buffers created...");
-  
-    // Set up command encoder
+    t_end = clock();
+    t_elapsed = measureTime(t_start, t_end);
+    sprintf(message, "Array buffers created in %.6f seconds", t_elapsed);
+    logToFile(message);
 
-    id<MTLComputeCommandEncoder> computeEncoder = [commandBuffer computeCommandEncoder];
+    // Set up command encoder
+    commandBuffer = [commandQueue commandBuffer];
+    computeEncoder = [commandBuffer computeCommandEncoder];
     [computeEncoder setComputePipelineState:computePipelineState];
     [computeEncoder setBuffer:array1Buffer offset:0 atIndex:0];
     [computeEncoder setBuffer:array2Buffer offset:0 atIndex:1];
     [computeEncoder setBuffer:resultBuffer offset:0 atIndex:2];        
-    logToFile("Command queue ready...");
+    logToFile("Command queue ready");
 
     // Set up threadgroups
-    NSUInteger threadsPerThreadgroup = computePipelineState.maxTotalThreadsPerThreadgroup;
-    NSUInteger threadExecutionWidth = computePipelineState.threadExecutionWidth;
-    NSUInteger staticThreadgroupMemoryLength = computePipelineState.staticThreadgroupMemoryLength;
+    logToFile("Calculating threadgroups");
     NSUInteger threadgroupCount = (length + threadsPerThreadgroup - 1) / threadsPerThreadgroup;
     MTLSize threadgroupSize = MTLSizeMake(threadsPerThreadgroup, 1, 1);
     MTLSize threadgroups = MTLSizeMake(threadgroupCount, 1, 1);
-    logToFile("Threadgroups calculated...");
-    logToFile((char *)[NSString stringWithFormat:@"Threads per thread group: %lu", (unsigned long)threadsPerThreadgroup].UTF8String);
-    logToFile((char *)[NSString stringWithFormat:@"Thread execution width: %lu", (unsigned long)threadExecutionWidth].UTF8String);
-    logToFile((char *)[NSString stringWithFormat:@"Threadgroups allocated: %lu", (unsigned long)threadgroupCount].UTF8String);
-    WSPutSymbol(stdlink, "Null");
-    return;
+    sprintf(message, "Threads per threadgroup: %lu", (unsigned long) threadsPerThreadgroup);
+    logToFile(message);
+    sprintf(message, "Thread execution width: %lu", (unsigned long)threadExecutionWidth);
+    logToFile(message);
+    sprintf(message, "Threadgroups allocated: %lu", (unsigned long)threadgroupCount);
+    logToFile(message);
 
     // Dispatch compute kernel & end encoding
     [computeEncoder dispatchThreadgroups:threadgroups threadsPerThreadgroup:threadgroupSize];
@@ -104,26 +120,32 @@ void addArrays(){
     logToFile("Encoding finished, Dispatched commands to GPU");
 
     // Execute command buffer & Wait until completion
+    t_start = clock();
     [commandBuffer commit];
     [commandBuffer waitUntilCompleted];
+    t_end = clock();
+    t_elapsed = measureTime(t_start, t_end);
+    sprintf(message, "Computation on GPU completed in %.6f seconds", t_elapsed);
+    logToFile(message);
     logToFile("Computation on GPU complete. Returning back...");
 
     // Read back results
+    logToFile("Starting to copy buffer contents");
     memcpy(result, [resultBuffer contents], sizeof(float)*length);
+    logToFile("Buffer contents copied");
 
     // Return to WL
     WSPutReal32List(stdlink, (float *)result, length);
     
     // Cleanup resources
-    //free(array1);
-    //free(array2);
     WSReleaseReal32Array(stdlink, array1, dims1, head1, d1);
     WSReleaseReal32Array(stdlink, array2, dims2, head2, d2);
+    free(result);
+    free(message);
     return;
 }
 
-int main(int argc, char* argv[]){
-    
+int init(){
     // Initialize device
     device = MTLCreateSystemDefaultDevice();
     if(!device) { logToFile("Device creation failed"); return -1; }
@@ -165,9 +187,16 @@ int main(int argc, char* argv[]){
     // Creating command queue & command buffer
     commandQueue = [device newCommandQueue];
     if(!commandQueue){ logToFile("Error: Failed creating command queue"); return -1; }
-    commandBuffer = [commandQueue commandBuffer];
-    if(!commandBuffer){ logToFile("Error: Failed creating command buffer"); return -1; }
 
+    //Threadgroup information
+    threadsPerThreadgroup = computePipelineState.maxTotalThreadsPerThreadgroup;
+    threadExecutionWidth = computePipelineState.threadExecutionWidth;
+
+    return 0;
+}
+
+int main(int argc, char* argv[]){
+    init();
     return WSMain(argc, argv);
 }
 

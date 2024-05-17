@@ -46,18 +46,8 @@
 :ReturnType:     Manual
 :End:
 
-:Begin:
-:Function:       readFile
-:Pattern:        ReadFile[]
-:Arguments:      {}
-:ArgumentTypes:  {}
-:ReturnType:     Manual
-:End:
-
 :Evaluate: DeviceName::usage = "Get information about metal device."
 :Evaluate: DeviceMemory::usage = "Get recommended usable memory of metal device."
 :Evaluate: DeviceMemoryType::usage = "Whether unified/dedicated."
 :Evaluate: DeviceMaxTransferRate::usage = "Transfer rate in Bytes/Second between CPU and GPU"
 :Evaluate: AddArrays::usage = "Add two arrays"
-:Evaluate: ReadFile::usage = "Read contents of file"
-:Evaluate: TestLog::usage = "Message stream"
