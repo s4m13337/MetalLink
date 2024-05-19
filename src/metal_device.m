@@ -23,7 +23,7 @@ int createLibrary(){
     // Create library from source file
     NSError *error = nil;
     NSString *source = [
-        NSString stringWithContentsOfFile:@"add_arrays.metal" 
+        NSString stringWithContentsOfFile:@"lib/add_arrays.metal" 
         encoding:NSUTF8StringEncoding 
         error:&error
     ];
