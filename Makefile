@@ -3,29 +3,31 @@ SYS = MacOSX-ARM64
 CADDSDIR = ${WSLINKDIR}/${SYS}/CompilerAdditions
 
 INCDIR = ${CADDSDIR}
+INCDIR_LOC = ./headers
 LIBDIR = ${CADDSDIR}
+SRCDIR = ./src
 
 WSPREP = ${CADDSDIR}/wsprep
 WSTP_LIB = -lWSTPi4
 EXTRA_LIBS = -lc++ -framework Foundation -framework Metal -framework CoreGraphics
 
-addtwo : addtwotm.o addtwo.o
-	${CC} -I${INCDIR} addtwotm.o addtwo.o -L${LIBDIR} ${WSTP_LIB} ${EXTRA_LIBS} -o $@
+CFLAGS = -I${INCDIR} -I${INCDIR_LOC}
+LIBS = -L${LIBDIR} ${WSTP_LIB} ${EXTRA_LIBS}
 
-metal : metaltm.o metal.o
-	${CC} -I${INCDIR} metaltm.o metal.o -L${LIBDIR} ${WSTP_LIB} ${EXTRA_LIBS} -o $@
+SRCS := $(wildcard $(SRCDIR)/*.m) $(wildcard $(SRCDIR)/*.c)
+OBJS := $(SRCS:.m=.o) $(SRCS:.c=.o)
 
-.m.o :
-	${CC} -c -I${INCDIR} $<
+metal : $(SRCDIR)/metaltm.o $(SRCDIR)/metal.o $(SRCDIR)/metal_device.o $(SRCDIR)/utilities.o
+	${CC} $(CFLAGS) $^ $(LIBS) -o $@
 
-.c.o :
-	${CC} -c -I${INCDIR} $<
+$(SRCDIR)/%.m.o:
+	${CC} -c -I${INCDIR} -I${INCDIR_LOC} $<
 
-addtwotm.c : addtwo.tm
-	${WSPREP} $? -o $@
+$(SRCDIR)/%.c.o :
+	${CC} -c -I${INCDIR} -I${INCDIR_LOC} $<
 
-metaltm.c : metal.tm
+$(SRCDIR)/metaltm.c : $(SRCDIR)/metal.tm
 	${WSPREP} $? -o $@
 
 clean:
-	rm addtwotm.c addtwotm.o addtwo.o addtwo metaltm.c metaltm.o metal.o metal 
+	rm -f metal ./src/*.o ./src/metaltm.c
