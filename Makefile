@@ -14,10 +14,11 @@ EXTRA_LIBS = -lc++ -framework Foundation -framework Metal -framework CoreGraphic
 CFLAGS = -I${INCDIR} -I${INCDIR_LOC}
 LIBS = -L${LIBDIR} ${WSTP_LIB} ${EXTRA_LIBS}
 
-SRCS := $(wildcard $(SRCDIR)/*.m) $(wildcard $(SRCDIR)/*.c)
-OBJS := $(SRCS:.m=.o) $(SRCS:.c=.o)
-
-metal : $(SRCDIR)/metaltm.o $(SRCDIR)/metal.o $(SRCDIR)/metal_device.o $(SRCDIR)/utilities.o
+metal : $(SRCDIR)/metal.o \
+	$(SRCDIR)/metal_device.o \
+	$(SRCDIR)/utilities.o \
+	$(SRCDIR)/metaltm.o \
+	$(SRCDIR)/add_arrays.o
 	${CC} $(CFLAGS) $^ $(LIBS) -o $@
 
 $(SRCDIR)/%.m.o:
