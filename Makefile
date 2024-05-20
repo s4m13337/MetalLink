@@ -1,34 +1,21 @@
-WSLINKDIR = /Applications/Wolfram\ Engine.app/Contents/Resources/Wolfram\ Player.app/Contents/SystemFiles/Links/WSTP/DeveloperKit
-SYS = MacOSX-ARM64
-CADDSDIR = ${WSLINKDIR}/${SYS}/CompilerAdditions
-
-INCDIR = ${CADDSDIR}
+INCDIR = /Applications/Wolfram\ Engine.app/Contents/Resources/Wolfram\ Player.app/Contents/SystemFiles/IncludeFiles/C
 INCDIR_LOC = ./headers
-LIBDIR = ${CADDSDIR}
 SRCDIR = ./src
-
-WSPREP = ${CADDSDIR}/wsprep
-WSTP_LIB = -lWSTPi4
 EXTRA_LIBS = -lc++ -framework Foundation -framework Metal -framework CoreGraphics
 
-CFLAGS = -I${INCDIR} -I${INCDIR_LOC}
-LIBS = -L${LIBDIR} ${WSTP_LIB} ${EXTRA_LIBS}
+CFLAGS = -I${INCDIR} -I${INCDIR_LOC} -fPIC
+LDFLAGS = -shared -dynamiclib
 
-metal : $(SRCDIR)/metal.o \
+libmetal.dylib : $(SRCDIR)/metal.o \
 	$(SRCDIR)/metal_device.o \
-	$(SRCDIR)/utilities.o \
-	$(SRCDIR)/metaltm.o \
-	$(SRCDIR)/add_arrays.o
-	${CC} $(CFLAGS) $^ $(LIBS) -o $@
+	$(SRCDIR)/utilities.o 
+	${CC} $(LDFLAGS) $(CFLAGS) $^ -o libmetal.dylib $(EXTRA_LIBS)
 
 $(SRCDIR)/%.m.o:
-	${CC} -c -I${INCDIR} -I${INCDIR_LOC} $<
+	${CC} -c $(CFLAGS) $<
 
 $(SRCDIR)/%.c.o :
-	${CC} -c -I${INCDIR} -I${INCDIR_LOC} $<
-
-$(SRCDIR)/metaltm.c : $(SRCDIR)/metal.tm
-	${WSPREP} $? -o $@
+	${CC} -c $(CFLAGS) $<
 
 clean:
 	rm -f metal ./src/*.o ./src/metaltm.c

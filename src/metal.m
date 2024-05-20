@@ -1,8 +1,8 @@
 #import <Foundation/Foundation.h>
 #import <Metal/Metal.h>
 #include "metal_device.h"
-#include "wstp.h"
 #include "utilities.h"
+#include "WolframLibrary.h"
 
 int init(){
     initializeDevice();
@@ -16,7 +16,11 @@ int init(){
     return 0;
 }
 
-int main(int argc, char* argv[]){
+EXTERN_C DLLEXPORT int WolframLibrary_initialize(WolframLibraryData libData) {
     init();
-    return WSMain(argc, argv);
+    return LIBRARY_NO_ERROR;
+}
+
+EXTERN_C DLLEXPORT void WolframLibrary_uninitialize(WolframLibraryData libData) {
+    return;
 }
