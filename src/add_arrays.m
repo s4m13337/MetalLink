@@ -1,13 +1,11 @@
 #include "metal_device.h"
 #include "utilities.h"
-#include "wstp.h"
+#include "WolframLibrary.h"
+#include "WolframNumericArrayLibrary.h"
 
-void addArrays(){    
-    
-    float *array1 = NULL, *array2 = NULL;
-    int *dims1 = NULL, *dims2 = NULL;
-    char **head1 = NULL, **head2 = NULL;
-    int d1 = 0, d2 = 0;
+EXTERN_C DLLEXPORT int addArrays(WolframLibraryData libData, mint Argc, MArgument *Args, MArgument Res){
+    MNumericArray a0 = NULL, a1 = NULL;
+    WolframNumericArrayLibrary_Functions naFuns = libData->numericarrayLibraryFunctions;
     
     // Variables for logging, measuring time
     char *message = NULL;
@@ -18,23 +16,39 @@ void addArrays(){
 
     // Get data from Mathematica
     logToFile("Getting data from Mathematica");
+    
     logToFile("Fetching array 1");
     t_start = clock();
-    WSGetReal32Array(stdlink, &array1, &dims1, &head1, &d1);
+    a0 = MArgument_getMNumericArray(Args[0]);
+    float *array1 = naFuns->MNumericArray_getData(a0);
     t_end = clock();
     t_elapsed = measureTime(t_start, t_end);
     sprintf(message, "Fetched array 1 in %.6f seconds", t_elapsed);
     logToFile(message);
+    
     logToFile("Fetching array 2");
     t_start = clock();
-    WSGetReal32Array(stdlink, &array2, &dims2, &head2, &d2);
+    a1 = MArgument_getMNumericArray(Args[1]);
+    float *array2 = naFuns->MNumericArray_getData(a1);
     t_end = clock();
     t_elapsed = measureTime(t_start, t_end);
     sprintf(message, "Fetched array 2 in %.6f seconds", t_elapsed);
     logToFile(message);
+
+    mint len1x = naFuns->MNumericArray_getDimensions(a0)[0];
+    mint len1y = naFuns->MNumericArray_getDimensions(a0)[1];
+    mint len2x = naFuns->MNumericArray_getDimensions(a1)[0];
+    mint len2y = naFuns->MNumericArray_getDimensions(a1)[1];
     
-    int length = *dims1;
-    float *result = (float *)malloc(sizeof(float) * length);
+    int length = (int) len1x;
+    MNumericArray a2 = NULL;
+    numericarray_data_t type = MNumericArray_Type_Real32;
+    mint dims[2];
+    dims[0] = len1x;
+    dims[1] = len1y;
+    mint rank = 1;
+    naFuns->MNumericArray_new(type, rank, dims, &a2);
+    float *result = naFuns->MNumericArray_getData(a2);
     
     // Create Metal buffers
     logToFile("Creating array buffers");
@@ -44,15 +58,18 @@ void addArrays(){
         length:sizeof(float) * length 
         options:MTLResourceStorageModeShared
     ];
+
     id<MTLBuffer> array2Buffer = [
         device newBufferWithBytes:array2 
         length:sizeof(float) * length 
         options:MTLResourceStorageModeShared
     ];
+
     id<MTLBuffer> resultBuffer = [
         device newBufferWithLength:sizeof(float) * length 
         options:MTLResourceStorageModeShared
     ];
+    
     t_end = clock();
     t_elapsed = measureTime(t_start, t_end);
     sprintf(message, "Array buffers created in %.6f seconds", t_elapsed);
@@ -100,12 +117,12 @@ void addArrays(){
     logToFile("Buffer contents copied");
 
     // Return to WL
-    WSPutReal32List(stdlink, (float *)result, length);
+    MArgument_setMNumericArray(Res, a2);
+    /*[resultBuffer release];
+    [array1Buffer release];
+    [array2Buffer release];*/
+
+    return LIBRARY_NO_ERROR;
+}   
     
-    // Cleanup resources
-    WSReleaseReal32Array(stdlink, array1, dims1, head1, d1);
-    WSReleaseReal32Array(stdlink, array2, dims2, head2, d2);
-    free(result);
-    free(message);
-    return;
-}
+    
