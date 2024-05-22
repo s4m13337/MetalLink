@@ -3,6 +3,67 @@
 #include "WolframLibrary.h"
 #include "WolframNumericArrayLibrary.h"
 
+void processAddArraysAsync(float *array1, float *array2, NSUInteger length, float *result) {
+    @autoreleasepool{
+    NSUInteger CHUNK_SIZE = 100000;
+    dispatch_group_t group = dispatch_group_create();
+    NSUInteger numChunks = (length + CHUNK_SIZE - 1) / CHUNK_SIZE;
+    
+    for (NSUInteger chunkIndex = 0; chunkIndex < numChunks; chunkIndex++) {
+        
+        dispatch_group_enter(group);
+        
+        dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
+
+            NSUInteger chunkStart = chunkIndex * CHUNK_SIZE;
+            NSUInteger chunkSize = MIN(CHUNK_SIZE, length - chunkStart);
+            
+            id<MTLBuffer> array1Buffer = [
+                device newBufferWithBytes:(array1 + chunkStart)
+                length:sizeof(float) * chunkSize
+                options:MTLResourceStorageModeShared
+            ];
+
+            id<MTLBuffer> array2Buffer = [
+                device newBufferWithBytes:(array2 + chunkStart)
+                length:sizeof(float) * chunkSize
+                options:MTLResourceStorageModeShared
+            ];
+            
+            id<MTLBuffer> resultBuffer = [
+                device newBufferWithLength:sizeof(float) * chunkSize
+                options:MTLResourceStorageModeShared
+            ];
+            
+            id<MTLCommandBuffer> commandBuffer = [commandQueue commandBuffer];
+            id<MTLComputeCommandEncoder> computeEncoder = [commandBuffer computeCommandEncoder];
+            [computeEncoder setComputePipelineState:computePipelineState];
+            [computeEncoder setBuffer:array1Buffer offset:0 atIndex:0];
+            [computeEncoder setBuffer:array2Buffer offset:0 atIndex:1];
+            [computeEncoder setBuffer:resultBuffer offset:0 atIndex:2];
+            
+            NSUInteger threadsPerThreadgroup = computePipelineState.maxTotalThreadsPerThreadgroup;
+            NSUInteger threadgroupCount = (chunkSize + threadsPerThreadgroup - 1) / threadsPerThreadgroup;
+            MTLSize threadgroupSize = MTLSizeMake(threadsPerThreadgroup, 1, 1);
+            MTLSize threadgroups = MTLSizeMake(threadgroupCount, 1, 1);
+            
+            [computeEncoder dispatchThreadgroups:threadgroups threadsPerThreadgroup:threadgroupSize];
+            [computeEncoder endEncoding];
+            
+            [commandBuffer addCompletedHandler:^(id<MTLCommandBuffer> buffer) {
+                memcpy(result + chunkStart, resultBuffer.contents, sizeof(float) * chunkSize);
+                dispatch_group_leave(group);
+            }];
+            
+            [commandBuffer commit];
+
+        });
+    }
+
+    dispatch_group_wait(group, DISPATCH_TIME_FOREVER);
+    }
+}
+
 EXTERN_C DLLEXPORT int addArrays(WolframLibraryData libData, mint Argc, MArgument *Args, MArgument Res){
     MNumericArray a0 = NULL, a1 = NULL;
     WolframNumericArrayLibrary_Functions naFuns = libData->numericarrayLibraryFunctions;
@@ -49,7 +110,12 @@ EXTERN_C DLLEXPORT int addArrays(WolframLibraryData libData, mint Argc, MArgumen
     mint rank = 1;
     naFuns->MNumericArray_new(type, rank, dims, &a2);
     float *result = naFuns->MNumericArray_getData(a2);
+
+    createPipeline(@"add_arrays");
+
+    processAddArraysAsync(array1, array2, length, result);
     
+    /*
     // Create Metal buffers
     logToFile("Creating array buffers");
     t_start = clock();
@@ -121,12 +187,10 @@ EXTERN_C DLLEXPORT int addArrays(WolframLibraryData libData, mint Argc, MArgumen
     logToFile("Starting to copy buffer contents");
     memcpy(result, [resultBuffer contents], sizeof(float)*length);
     logToFile("Buffer contents copied");
+    */
 
     // Return to WL
     MArgument_setMNumericArray(Res, a2);
-    /*[resultBuffer release];
-    [array1Buffer release];
-    [array2Buffer release];*/
 
     return LIBRARY_NO_ERROR;
 }   
