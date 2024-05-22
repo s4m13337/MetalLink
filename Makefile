@@ -9,7 +9,8 @@ LDFLAGS = -shared -dynamiclib
 libmetal : $(SRCDIR)/metal.o \
 	$(SRCDIR)/metal_device.o \
 	$(SRCDIR)/utilities.o \
-	$(SRCDIR)/add_arrays.o
+	$(SRCDIR)/add_arrays.o \
+	$(SRCDIR)/metal_map.o
 	${CC} $(LDFLAGS) $(CFLAGS) $^ -o libmetal.dylib $(EXTRA_LIBS)
 
 $(SRCDIR)/%.m.o:
