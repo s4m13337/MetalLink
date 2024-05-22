@@ -75,6 +75,9 @@ EXTERN_C DLLEXPORT int addArrays(WolframLibraryData libData, mint Argc, MArgumen
     sprintf(message, "Array buffers created in %.6f seconds", t_elapsed);
     logToFile(message);
 
+    // Setup pipeline
+    createPipeline(@"add_arrays");
+
     // Set up command encoder
     commandBuffer = [commandQueue commandBuffer];
     computeEncoder = [commandBuffer computeCommandEncoder];
@@ -86,6 +89,9 @@ EXTERN_C DLLEXPORT int addArrays(WolframLibraryData libData, mint Argc, MArgumen
 
     // Set up threadgroups
     logToFile("Calculating threadgroups");
+    //Threadgroup information
+    NSUInteger threadsPerThreadgroup = computePipelineState.maxTotalThreadsPerThreadgroup;
+    NSUInteger threadExecutionWidth = computePipelineState.threadExecutionWidth;
     NSUInteger threadgroupCount = (length + threadsPerThreadgroup - 1) / threadsPerThreadgroup;
     MTLSize threadgroupSize = MTLSizeMake(threadsPerThreadgroup, 1, 1);
     MTLSize threadgroups = MTLSizeMake(threadgroupCount, 1, 1);

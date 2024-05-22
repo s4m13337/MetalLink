@@ -5,7 +5,8 @@
 
 int initializeDevice();
 int createLibrary();
-int createPipeline();
+int initializePipelineCache();
+int createPipeline(NSString *);
 int createCommandQueue();
 int deviceInformation();
 
@@ -16,7 +17,6 @@ extern id<MTLComputePipelineState> computePipelineState;
 extern id<MTLCommandQueue> commandQueue;
 extern id<MTLCommandBuffer> commandBuffer;
 extern id<MTLComputeCommandEncoder> computeEncoder;
-extern NSUInteger threadsPerThreadgroup;
-extern NSUInteger threadExecutionWidth;
+extern NSMutableDictionary<NSString *, id<MTLComputePipelineState>> *pipelineCache;
 
 #endif

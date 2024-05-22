@@ -8,11 +8,8 @@ int init(){
     initializeDevice();
     deviceInformation();
     createLibrary();
-    createPipeline();
+    initializePipelineCache();
     createCommandQueue();
-    //Threadgroup information
-    threadsPerThreadgroup = computePipelineState.maxTotalThreadsPerThreadgroup;
-    threadExecutionWidth = computePipelineState.threadExecutionWidth;
     return 0;
 }
 
