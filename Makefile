@@ -1,26 +1,29 @@
 INCDIR = /Applications/Wolfram\ Engine.app/Contents/Resources/Wolfram\ Player.app/Contents/SystemFiles/IncludeFiles/C
 INCDIR_LOC = ./headers
 SRCDIR = ./src
+BUILD_DIR = ./build
 EXTRA_LIBS = -lc++ -framework Foundation -framework Metal -framework CoreGraphics
 
 CFLAGS = -I${INCDIR} -I${INCDIR_LOC} -fPIC -fobjc-arc
 LDFLAGS = -shared -dynamiclib
 
-libmetal : $(SRCDIR)/metal.o \
-	$(SRCDIR)/metal_device.o \
-	$(SRCDIR)/utilities.o \
-	$(SRCDIR)/add_arrays.o \
-	$(SRCDIR)/metal_map.o
+$(shell mkdir -p $(BUILD_DIR))
+
+libmetal : $(BUILD_DIR)/metal.o \
+	$(BUILD_DIR)/metal_device.o \
+	$(BUILD_DIR)/utilities.o \
+	$(BUILD_DIR)/add_arrays.o \
+	$(BUILD_DIR)/metal_map.o
 	${CC} $(LDFLAGS) $(CFLAGS) $^ -o libmetal.dylib $(EXTRA_LIBS)
 
-$(SRCDIR)/%.m.o:
-	${CC} -c $(CFLAGS) $<
+$(BUILD_DIR)/%.o: $(SRCDIR)/%.m
+	${CC} -c $(CFLAGS) $< -o $@
 
-$(SRCDIR)/%.c.o :
-	${CC} -c $(CFLAGS) $<
+$(BUILD_DIR)/%.o: $(SRCDIR)/%.c
+	${CC} -c $(CFLAGS) $< -o $@
 
 library:
 	cat ./lib/*.metal > ./lib/library.metal
 
 clean:
-	rm -f libmetal.dylib ./src/*.o ./lib/library.metal
+	rm -rf libmetal.dylib ./lib/library.metal ./build
