@@ -79,7 +79,7 @@ void processMapAsync(float *data, NSUInteger length, int operator_id, float *res
     }
 }
 
-EXTERN_C DLLEXPORT int metalMap(WolframLibraryData libData, mint Argc, MArgument *Args, MArgument Res){
+int metalMap(WolframLibraryData libData, mint Argc, MArgument *Args, MArgument Res){
     // Variables for logging, measuring time
     char *message = NULL;
     clock_t t_start, t_end;
@@ -130,6 +130,4 @@ EXTERN_C DLLEXPORT int metalMap(WolframLibraryData libData, mint Argc, MArgument
     MArgument_setMNumericArray(Res, output_array);
 
     return LIBRARY_NO_ERROR;
-}   
-    
-    
+}
