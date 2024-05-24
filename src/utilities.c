@@ -3,7 +3,7 @@
 void logToFile(char* message){
     time_t seconds;
     seconds = time(NULL);
-    FILE *file = fopen("/Users/s4m13337/log", "a");
+    FILE *file = fopen("log", "a");
     if (file == NULL) { return; }
     fprintf(file, "[%ld] - %s\n", seconds, message);
     fclose(file);
