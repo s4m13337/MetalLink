@@ -12,8 +12,8 @@ $(shell mkdir -p $(BUILD_DIR))
 libmetal : $(BUILD_DIR)/metal.o \
 	$(BUILD_DIR)/metal_device.o \
 	$(BUILD_DIR)/utilities.o \
-	$(BUILD_DIR)/add_arrays.o \
-	$(BUILD_DIR)/metal_map.o
+	$(BUILD_DIR)/metalMap.o \
+	$(BUILD_DIR)/metalImageNegative.o
 	${CC} $(LDFLAGS) $(CFLAGS) $^ -o libmetal.dylib $(EXTRA_LIBS)
 
 $(BUILD_DIR)/%.o: $(SRCDIR)/%.m
