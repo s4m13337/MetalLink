@@ -1,5 +1,6 @@
 #import <Foundation/Foundation.h>
 #import <Metal/Metal.h>
+#include <MetalPerformanceShaders/MetalPerformanceShaders.h>
 #include "metal_device.h"
 #include "utilities.h"
 #include "WolframLibrary.h"

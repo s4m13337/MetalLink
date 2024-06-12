@@ -15,6 +15,11 @@ int initializeDevice(){
     device = MTLCreateSystemDefaultDevice();
     if(!device) { logToFile("Device creation failed"); return -1; }
     logToFile("Metal device instance created");
+    if(MPSSupportsMTLDevice(device)) { 
+        logToFile("MPS is supported");
+    } else {
+        logToFile("MPS is not supported");
+    }
     return 0;
 }
 
